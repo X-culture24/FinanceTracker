@@ -43,7 +43,8 @@ Personal Finance Tracker is a web application built using **Django (backend) and
    ```
 3. Install dependencies:
    ```bash
-   pip install -r requirements.txt
+   pip install django
+   pip install pyscopg2
    ```
 4. Configure PostgreSQL database in `.env` file.
 5. Apply migrations:
