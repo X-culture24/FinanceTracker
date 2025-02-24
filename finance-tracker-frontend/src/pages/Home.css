@@ -1,0 +1,23 @@
+.home-container {
+  text-align: center;
+  margin-top: 100px;
+}
+
+.home-container h1 {
+  font-size: 2.5rem;
+}
+
+.get-started-btn {
+  background: #6a11cb;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 10px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.get-started-btn:hover {
+  background: #2575fc;
+}

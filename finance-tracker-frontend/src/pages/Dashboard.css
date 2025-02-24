@@ -1,0 +1,33 @@
+.button-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.green-btn {
+  background-color: green;  /* Change button color */
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 16px; /* Normal button size */
+}
+
+.green-btn:hover {
+  background-color: darkgreen;
+}
+
+.logout-btn {
+  background-color: red; /* Logout button in red */
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.logout-btn:hover {
+  background-color: darkred;
+}
