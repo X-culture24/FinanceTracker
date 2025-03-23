@@ -1,0 +1,129 @@
+/* Main Dashboard Layout */
+.dashboard-container {
+  display: flex;
+  height: 100vh; /* Full-page height */
+  background: #f8f9fa; /* Light background */
+  overflow: hidden; /* Prevent scrollbars */
+}
+
+/* Sidebar Navigation */
+.dashboard-sidebar {
+  width: 280px;
+  background: #1a1a2e; /* Modern dark sidebar */
+  color: white;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  overflow-y: auto; /* Enables vertical scrolling */
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Sidebar Title */
+.sidebar-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  padding: 20px;
+  text-align: center;
+  color: #6a0dad; /* Purple accent */
+}
+
+/* Navigation Links */
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Navigation Item */
+.nav-item {
+  padding: 16px 30px;
+  font-size: 1.2rem;
+  text-decoration: none;
+  color: white;
+  transition: background 0.3s ease, transform 0.2s ease;
+  border-left: 4px solid transparent; /* Active indicator */
+}
+
+/* Hover Effect */
+.nav-item:hover {
+  background: rgba(106, 13, 173, 0.4);
+  transform: translateX(8px);
+}
+
+/* Main Dashboard Content */
+.dashboard-content {
+  flex-grow: 1; /* Fills remaining space */
+  padding: 40px;
+  overflow-y: auto; /* Content can scroll */
+  background: white;
+  border-radius: 24px 0 0 24px; /* Smooth rounded edges */
+}
+
+/* Dashboard Header */
+.dashboard-content h1 {
+  font-size: 2.5rem;
+  color: #6a0dad; /* Purple accent */
+}
+
+/* Dashboard Links Section */
+.dashboard-links {
+  display: flex;
+  flex-wrap: wrap; /* Allows wrapping for responsiveness */
+  gap: 20px;
+  margin-top: 40px;
+}
+
+/* Dashboard Card */
+.dashboard-card {
+  flex: 1 1 calc(33.33% - 20px); /* Responsive cards */
+  padding: 20px;
+  text-align: center;
+  text-decoration: none;
+  color: #1a1a2e;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Card Hover Effect */
+.dashboard-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 24px rgba(106, 13, 173, 0.3);
+}
+
+/* Scrollbar Customization */
+.dashboard-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dashboard-sidebar::-webkit-scrollbar-thumb {
+  background: #6a0dad; /* Purple scrollbar */
+  border-radius: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .dashboard-sidebar {
+    width: 220px;
+  }
+
+  .dashboard-card {
+    flex: 1 1 calc(50% - 20px);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    flex-direction: column; /* Stack sidebar on top */
+  }
+
+  .dashboard-sidebar {
+    width: 100%;
+    height: auto;
+  }
+
+  .dashboard-card {
+    flex: 1 1 100%; /* Full width cards on small screens */
+  }
+}

@@ -1,0 +1,120 @@
+/* Main Auth Container */
+.auth-container {
+  text-align: center;
+  padding: 80px 20px;
+  background: linear-gradient(135deg, #000428, #004e92); /* Deep Blue Gradient */
+  color: white;
+  min-height: 100vh; /* Full-page height */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Register Heading */
+.auth-container h2 {
+  font-size: 3.5rem;
+  margin-bottom: 40px;
+  color: #1e90ff; /* Dodger Blue */
+}
+
+/* Registration Form */
+.auth-container form {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  width: 100%;
+  max-width: 500px; /* Keep form centered */
+}
+
+/* Input Fields */
+.auth-container input {
+  padding: 18px 20px;
+  font-size: 1.6rem;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+  background: white;
+  color: #333;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Input Hover & Focus */
+.auth-container input:focus {
+  box-shadow: 0 0 15px rgba(30, 144, 255, 0.8); /* Blue Glow */
+}
+
+/* Register Button */
+.auth-container button {
+  padding: 18px 0;
+  font-size: 2rem;
+  font-weight: bold;
+  background: #1e90ff; /* Dodger Blue */
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 0 15px #00bfff;
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+/* Button Hover Effect */
+.auth-container button:hover {
+  background: #6495ed; /* Cornflower Blue */
+  transform: scale(1.05);
+}
+
+/* Already have an account? */
+.auth-container p {
+  margin-top: 30px;
+  font-size: 1.6rem;
+}
+
+/* Link Styling */
+.auth-container a {
+  color: #1e90ff;
+  text-decoration: none;
+  font-weight: bold;
+  transition: color 0.3s ease;
+}
+
+.auth-container a:hover {
+  color: #00bfff; /* Lighter Blue */
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .auth-container h2 {
+    font-size: 3rem;
+  }
+
+  .auth-container input {
+    font-size: 1.4rem;
+  }
+
+  .auth-container button {
+    font-size: 1.8rem;
+  }
+
+  .auth-container p {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-container h2 {
+    font-size: 2.5rem;
+  }
+
+  .auth-container input {
+    font-size: 1.2rem;
+  }
+
+  .auth-container button {
+    font-size: 1.5rem;
+  }
+
+  .auth-container p {
+    font-size: 1.2rem;
+  }
+}

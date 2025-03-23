@@ -47,7 +47,6 @@ class Notification(models.Model):
     def __str__(self):
         return f"Notification for {self.user.username} - {self.bill.category}"
 
-# ✅ Transaction Model (Record of All Income & Expenses)
 class Transaction(models.Model):
     TRANSACTION_TYPES = [
         ("bill_payment", "Bill Payment"),
@@ -60,6 +59,10 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     timestamp = models.DateTimeField(auto_now_add=True)
     bill = models.ForeignKey(Bill, on_delete=models.CASCADE, null=True, blank=True)
+
+    # ✅ New Fields
+    category = models.CharField(max_length=100, null=True, blank=True)  # Add category
+    transaction_date = models.DateField(null=True, blank=True)           # Add transaction_date
 
     def __str__(self):
         return f"{self.transaction_type} - {self.amount} for {self.user.username}"

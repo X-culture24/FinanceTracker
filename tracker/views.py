@@ -7,75 +7,27 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.db.models import Sum
 from .models import User, Budget, Bill, Notification, Transaction
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
-# ✅ Main Finance Tracker View (Handles all actions)
-@csrf_exempt
-def finance_tracker(request):
-    try:
-        data = json.loads(request.body)
-        action = data.get('action')
-
-        if action == "register":
-            return register_user(data)
-
-        elif action == "login":
-            return login_user(data)
-
-        # Authenticate with JWT for protected routes
-        user = authenticate_with_jwt(request)
-        if not user:
-            return JsonResponse({"error": "Authentication required."}, status=401)
-
-        # Authenticated Actions
-        if action == "add_budget":
-            return add_budget(user, data)
-
-        elif action == "add_bill":
-            return add_bill(user, data)
-
-        elif action == "finance_analysis":
-            return finance_analysis(user)
-
-        elif action == "notifications":
-            return bill_notifications(user)
-
-        elif action == "transactions":
-            return user_transactions(user)
-
-        else:
-            logger.warning("Invalid action received: %s", action)
-            return JsonResponse({"error": "Invalid action."}, status=400)
-
-    except json.JSONDecodeError:
-        logger.error("Invalid JSON data received.")
-        return JsonResponse({"error": "Invalid JSON data."}, status=400)
-    except Exception as e:
-        logger.exception("Error in finance_tracker: %s", str(e))
-        return JsonResponse({"error": "Internal server error."}, status=500)
-
-
-# ✅ Helper: Authenticate with JWT and Handle Expired Tokens
+# ✅ Helper: JWT Authentication
 def authenticate_with_jwt(request):
     jwt_auth = JWTAuthentication()
     try:
         user, validated_token = jwt_auth.authenticate(request)
-
-        # Check for token expiration and attempt to refresh
+        if not user:
+            return None
         if "exp" in validated_token.payload:
             exp = validated_token.payload["exp"]
-            now = timezone.now().timestamp()
-            if exp < now:
-                logger.warning("Access token expired. Attempting to refresh.")
-                return JsonResponse({"error": "Access token expired. Please refresh."}, status=401)
-
+            if exp < timezone.now().timestamp():
+                return JsonResponse({"error": "Access token expired."}, status=401)
         return user
     except Exception as e:
         logger.error(f"JWT Authentication failed: {e}")
         return None
-
 
 # ✅ Register User
 def register_user(data):
@@ -90,28 +42,6 @@ def register_user(data):
 
     User.objects.create_user(username=username, password=password)
     return JsonResponse({"message": "User registered successfully."})
-
-# ✅ Bill Notifications (Upcoming and Overdue)
-def bill_notifications(user):
-    today = timezone.now().date()
-    upcoming_bills = Bill.objects.filter(user=user, due_date__gte=today, is_paid=False).order_by('due_date')
-    overdue_bills = Bill.objects.filter(user=user, due_date__lt=today, is_paid=False).order_by('due_date')
-
-    notifications = []
-
-    # Prepare upcoming bill notifications
-    for bill in upcoming_bills:
-        notifications.append({
-            "message": f"Upcoming bill: {bill.category} of KES {bill.amount} due on {bill.due_date}"
-        })
-
-    # Prepare overdue bill notifications
-    for bill in overdue_bills:
-        notifications.append({
-            "message": f"Overdue bill: {bill.category} of KES {bill.amount} due on {bill.due_date}"
-        })
-
-    return JsonResponse({"notifications": notifications})
 
 # ✅ Login User (Returns JWT Tokens)
 def login_user(data):
@@ -128,124 +58,177 @@ def login_user(data):
             "access": str(refresh.access_token),
             "refresh": str(refresh)
         })
-    else:
-        return JsonResponse({"error": "Invalid credentials."}, status=401)
+    return JsonResponse({"error": "Invalid credentials."}, status=401)
 
+# ✅ Add Bill (Handles Paid & Unpaid Bills)
+def add_bill(user, data):
+    amount = data.get("amount")
+    category = data.get("category")
+    due_date = data.get("due_date")
+    is_paid = data.get("is_paid", False)
 
-# ✅ Add Budget (User from JWT)
-def add_budget(user, data):
-    total_budget = data.get('total_budget')
-
-    if total_budget is None:
-        return JsonResponse({"error": "Total budget is required."}, status=400)
+    if not all([amount, category, due_date]):
+        return JsonResponse({"error": "Missing required fields."}, status=400)
 
     try:
-        total_budget = float(total_budget)
-    except ValueError:
-        return JsonResponse({"error": "Total budget must be a valid number."}, status=400)
+        amount = Decimal(amount)
+        due_date = timezone.datetime.strptime(due_date, "%Y-%m-%d").date()
+        if due_date < timezone.now().date():
+            return JsonResponse({"error": "Due date cannot be in the past."}, status=400)
+    except Exception:
+        return JsonResponse({"error": "Invalid input format."}, status=400)
 
-    budget, created = Budget.objects.update_or_create(user=user, defaults={
-        'total_budget': total_budget,
-        'remaining_budget': total_budget
-    })
+    # Create the bill
+    bill = Bill.objects.create(user=user, amount=amount, category=category, due_date=due_date, is_paid=is_paid)
 
-    return JsonResponse({"message": "Budget updated successfully."})
-# ✅ Create Notification for Unpaid Bills
-def create_notification(user, bill):
-    message = f"Upcoming bill for {bill.category} is due on {bill.due_date}."
-    Notification.objects.create(user=user, message=message, bill=bill)
+    # Handle payment
+    if is_paid:
+        budget = Budget.objects.filter(user=user).first()
+        if budget:
+            budget.remaining_budget -= amount
+            budget.save()
 
-# ✅ Add Bill & Record Transaction (User from JWT)
-def add_bill(user, data):
-    category = data.get('category')
-    amount = data.get('amount')
-    due_date = data.get('due_date')
-    mark_as_paid = data.get('is_paid', False)
+        Transaction.objects.create(
+            user=user,
+            bill=bill,
+            amount=amount,
+            category=category,
+            transaction_type="debit",
+            transaction_date=timezone.now()
+        )
+    else:
+        Notification.objects.create(
+            user=user,
+            message=f"Reminder: Pay {category} bill of KES {amount} by {due_date}.",
+            bill=bill
+        )
 
-    valid_categories = ["water", "rent", "electricity"]
-    if category not in valid_categories:
-        return JsonResponse({"error": "Invalid category. Choose from water, rent, electricity."}, status=400)
+    return JsonResponse({"message": "Bill processed successfully."}, status=201)
 
-    if not amount or not due_date:
-        return JsonResponse({"error": "Amount and due_date are required."}, status=400)
+# ✅ List Bills (with status, payment details & notifications)
+def list_bills(user):
+    bills = Bill.objects.filter(user=user).order_by('-due_date')
+    notifications = Notification.objects.filter(user=user, bill__in=bills)
 
-    # Create Bill
-    bill = Bill.objects.create(
-        user=user,
-        category=category,
-        amount=amount,
-        due_date=due_date,
-        is_paid=mark_as_paid
-    )
+    if not bills.exists():
+        return JsonResponse({"message": "No bills available."}, status=200)
 
-    # ✅ Mark as paid and record the transaction
-    if mark_as_paid:
-        update_budget(user, amount)
-        record_transaction(user, bill, "bill_payment")
+    bill_list = [
+        {
+            "bill_id": bill.id,
+            "amount": float(bill.amount),
+            "category": bill.category,
+            "due_date": bill.due_date.strftime("%Y-%m-%d"),
+            "status": "Paid" if bill.is_paid else "Unpaid",
+            "can_mark_as_paid": not bill.is_paid,
+        }
+        for bill in bills
+    ]
 
-    # Automatically create a notification for unpaid bills
-    if not mark_as_paid:
-        create_notification(user, bill)
+    notification_list = [
+        {
+            "message": notification.message,
+            "bill_id": notification.bill.id,
+        }
+        for notification in notifications
+    ]
 
-    return JsonResponse({"message": "Bill added successfully.", "bill_id": bill.id})
+    return JsonResponse({"bills": bill_list, "notifications": notification_list}, status=200)
 
 
-# ✅ Update Budget when Bill is Paid
-def update_budget(user, amount):
+
+# ✅ Mark Bill as Paid (Update & Record Transaction)
+def mark_bill_paid(user, data):
+    bill_id = data.get('bill_id')
+    if not bill_id:
+        return JsonResponse({"error": "Bill ID is required."}, status=400)
+
+    try:
+        bill = Bill.objects.get(id=bill_id, user=user)
+    except Bill.DoesNotExist:
+        return JsonResponse({"error": "Bill not found."}, status=404)
+
+    if bill.is_paid:
+        return JsonResponse({"message": "Bill already marked as paid."}, status=400)
+
+    # Mark as Paid and Update Budget
+    bill.is_paid = True
+    bill.save()
+
+    # Update Budget
     budget = Budget.objects.filter(user=user).first()
     if budget:
-        budget.remaining_budget -= amount
+        budget.remaining_budget -= bill.amount
         budget.save()
 
-
-# ✅ Record Transaction (for Bill Payments)
-def record_transaction(user, bill, transaction_type):
+    # Create Transaction Entry
     Transaction.objects.create(
         user=user,
         bill=bill,
-        transaction_type=transaction_type,
-        amount=bill.amount
+        amount=bill.amount,
+        category=bill.category,
+        transaction_type="debit",
+        transaction_date=timezone.now()
     )
 
+    # Remove Related Notification
+    Notification.objects.filter(user=user, bill=bill).delete()
 
-# ✅ Retrieve User Transactions
-def user_transactions(user):
-    transactions = Transaction.objects.filter(user=user).order_by('-timestamp')
-    transaction_list = [
-        {
-            "amount": t.amount,
-            "transaction_type": t.transaction_type,
-            "timestamp": t.timestamp,
-            "bill_category": t.bill.category
-        }
-        for t in transactions
-    ]
+    return JsonResponse({"message": "Bill marked as paid and recorded."}, status=200)
 
-    return JsonResponse({"transactions": transaction_list})
-
-
-
-# ✅ Finance Analysis (User from JWT)
+# ✅ Finance Analysis (with Progress Calculation)
 def finance_analysis(user):
     budget = Budget.objects.filter(user=user).first()
-    if not budget:
-        return JsonResponse({"error": "Budget not found."}, status=404)
+    total_budget = budget.total_budget if budget else Decimal(0)
+    remaining_budget = budget.remaining_budget if budget else Decimal(0)
 
-    bills = Bill.objects.filter(user=user)
-    total_bills = bills.count()
-    paid_bills = bills.filter(is_paid=True).count()
-    pending_bills = total_bills - paid_bills
+    paid_bills_total = Transaction.objects.filter(user=user, transaction_type="debit").aggregate(total=Sum('amount'))['total'] or Decimal(0)
+    unpaid_bills_total = Bill.objects.filter(user=user, is_paid=False).aggregate(total=Sum('amount'))['total'] or Decimal(0)
 
-    # Calculate percentage of budget used
-    used_budget = budget.total_budget - budget.remaining_budget
-    progress = (used_budget / budget.total_budget) * 100 if budget.total_budget > 0 else 0
+    progress_percentage = (remaining_budget / total_budget) * 100 if total_budget > 0 else 0
 
     return JsonResponse({
-        "total_budget": str(budget.total_budget),
-        "remaining_budget": str(budget.remaining_budget),
-        "paid_bills": paid_bills,
-        "pending_bills": pending_bills,
-        "progress": round(progress, 2)  # Percentage of budget used
-    })
+        "total_budget": total_budget,
+        "remaining_budget": remaining_budget,
+        "paid_bills_total": paid_bills_total,
+        "unpaid_bills_total": unpaid_bills_total,
+        "progress_percentage": round(progress_percentage, 2)
+    }, status=200)
 
+# ✅ Main Finance Tracker Endpoint
+@csrf_exempt
+def finance_tracker(request):
+    try:
+        data = json.loads(request.body)
+        action = data.get('action')
 
+        if action == "register":
+            return register_user(data)
+
+        if action == "login":
+            return login_user(data)
+
+        # Protected actions (require authentication)
+        user = authenticate_with_jwt(request)
+        if not user:
+            return JsonResponse({"error": "Authentication required."}, status=401)
+
+        if action == "add_bill":
+            return add_bill(user, data)
+
+        if action == "list_bills":
+            return list_bills(user)
+
+        if action == "mark_bill_paid":
+            return mark_bill_paid(user, data)
+
+        if action == "finance_analysis":
+            return finance_analysis(user)
+
+        return JsonResponse({"error": "Invalid action."}, status=400)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON format."}, status=400)
+    except Exception as e:
+        logger.exception("Error in finance_tracker: %s", str(e))
+        return JsonResponse({"error": "Internal server error."}, status=500)

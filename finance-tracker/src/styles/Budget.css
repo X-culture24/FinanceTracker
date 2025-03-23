@@ -1,0 +1,58 @@
+/* Budget Page Container */
+.budget-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f9f9f9;
+}
+
+/* Budget Card Styling */
+.budget-card {
+  width: 400px;
+  padding: 40px;
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  text-align: center;
+}
+
+/* Budget Form Styling */
+.budget-form input {
+  width: 100%;
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.budget-form button {
+  width: 100%;
+  padding: 12px;
+  background: #6a0dad; /* Purple theme */
+  color: white;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.budget-form button:hover {
+  background: #4b0878; /* Darker on hover */
+}
+
+/* Budget Summary */
+.budget-summary h3,
+.budget-summary h4 {
+  margin: 10px 0;
+  color: #4b0878;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .budget-card {
+    width: 90%;
+  }
+}

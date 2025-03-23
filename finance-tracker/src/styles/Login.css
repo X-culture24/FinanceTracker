@@ -1,0 +1,84 @@
+/* Main Login Page Container */
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center horizontally */
+  justify-content: center; /* Center vertically */
+  min-height: 100vh; /* Full viewport height */
+  background: #f9f9f9; /* Light background for contrast */
+}
+
+/* Form Container with Shadow */
+.login-form-card {
+  width: 400px; /* Fixed width for a centered card */
+  padding: 40px;
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); /* Soft shadow */
+  border-radius: 16px;
+  margin-bottom: 20px; /* Space between the form and the link card */
+}
+
+/* Input Styling */
+.login-container input {
+  width: 100%;
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+/* Button Styling */
+.login-container button {
+  width: 100%;
+  padding: 12px;
+  background: #6a0dad; /* Purple theme */
+  color: white;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.login-container button:hover {
+  background: #4b0878; /* Darker on hover */
+}
+
+/* Message Styling */
+.login-message {
+  color: red;
+  margin-top: 10px;
+}
+
+/* Register Link Card (for better alignment) */
+.register-card {
+  width: 400px;
+  padding: 20px;
+  text-align: center;
+  background: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+}
+
+/* Register Link Styling */
+.register-link {
+  font-size: 1rem;
+}
+
+.register-link a {
+  color: #6a0dad; /* Matching theme */
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.register-link a:hover {
+  text-decoration: underline; /* Underline on hover */
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .login-form-card, .register-card {
+    width: 90%; /* Adjust for smaller screens */
+  }
+}
