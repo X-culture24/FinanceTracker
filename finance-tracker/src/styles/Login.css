@@ -5,7 +5,7 @@
   align-items: center; /* Center horizontally */
   justify-content: center; /* Center vertically */
   min-height: 100vh; /* Full viewport height */
-  background: #f9f9f9; /* Light background for contrast */
+  background: #87CEFA; /* Light Blue Background */
 }
 
 /* Form Container with Shadow */
@@ -26,6 +26,12 @@
   border: 1px solid #ccc;
   border-radius: 8px;
   font-size: 1rem;
+  background: white;
+  color: black; /* Ensure text is visible */
+}
+
+.login-container input::placeholder {
+  color: gray;
 }
 
 /* Button Styling */

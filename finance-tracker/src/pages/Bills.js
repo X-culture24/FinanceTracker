@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
@@ -12,13 +12,19 @@ const Bills = () => {
     amount: "",
     due_date: "",
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const navigate = useNavigate();
 
   // Fetch bills and notifications
-  const fetchBills = async () => {
+  const fetchBills = useCallback(async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("accessToken"); // Changed from "token" to "accessToken"
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const response = await axios.post(
         "http://localhost:8000/api/",
         { action: "list_bills" },
@@ -29,13 +35,24 @@ const Bills = () => {
       setNotifications(response.data.notifications || []);
     } catch (error) {
       console.error("Error fetching bills:", error);
+      if (error.response?.status === 401 || error.message.includes("authentication")) {
+        localStorage.removeItem("accessToken");
+        navigate("/login");
+      }
+      setError(error.response?.data?.error || "Failed to load bills");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [navigate]);
 
   // Mark bill as paid
   const markAsPaid = async (billId) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("accessToken"); // Changed here
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const response = await axios.post(
         "http://localhost:8000/api/",
         { action: "mark_bill_paid", bill_id: billId },
@@ -46,6 +63,10 @@ const Bills = () => {
       fetchBills(); // Refresh bill list
     } catch (error) {
       console.error("Error marking bill as paid:", error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem("accessToken");
+        navigate("/login");
+      }
     }
   };
 
@@ -53,7 +74,11 @@ const Bills = () => {
   const addBill = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("accessToken"); // Changed here
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const response = await axios.post(
         "http://localhost:8000/api/",
         { action: "add_bill", ...newBill },
@@ -61,25 +86,40 @@ const Bills = () => {
       );
 
       setMessage(response.data.message);
-      setNewBill({ category: "", amount: "", due_date: "" }); // Reset form
-      fetchBills(); // Refresh bill list
+      setNewBill({ category: "", amount: "", due_date: "" });
+      fetchBills();
     } catch (error) {
       console.error("Error adding bill:", error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem("accessToken");
+        navigate("/login");
+      }
     }
   };
 
   useEffect(() => {
     fetchBills();
-  }, []);
+  }, [fetchBills]);
+
+  if (loading) {
+    return <div className="container">Loading bills...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="container">
+        <p className="error-message">{error}</p>
+        <button onClick={() => window.location.reload()}>Try Again</button>
+      </div>
+    );
+  }
 
   return (
     <div className="container">
       <h2>Your Bills</h2>
 
-      {/* Display Message */}
       {message && <p className="success-message">{message}</p>}
 
-      {/* Bill List */}
       <ul>
         {bills.map((bill) => (
           <li key={bill.bill_id} className="card">
@@ -94,7 +134,6 @@ const Bills = () => {
         ))}
       </ul>
 
-      {/* Unpaid Bill Notifications */}
       <h3>Unpaid Bill Notifications</h3>
       {notifications.length === 0 ? (
         <p>No pending notifications.</p>
@@ -104,7 +143,6 @@ const Bills = () => {
         ))
       )}
 
-      {/* Add Bill Form */}
       <h3>Add a New Bill</h3>
       <form className="card add-bill-form" onSubmit={addBill}>
         <label>
@@ -142,7 +180,6 @@ const Bills = () => {
         <button type="submit">Add Bill</button>
       </form>
 
-      {/* Back Button */}
       <button className="back-button" onClick={() => navigate("/dashboard")}>
         ← Back to Dashboard
       </button>

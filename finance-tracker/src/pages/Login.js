@@ -11,7 +11,6 @@ const Login = () => {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
-  // ✅ Handle user login and store accessToken & budget
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -23,20 +22,22 @@ const Login = () => {
 
       console.log("✅ Login Response:", response.data);
 
-      // ✅ Use access token consistently
       const accessToken = response.data?.access || response.data?.token;
       const budget = response.data?.budget;
 
       if (accessToken) {
-        // ✅ Store accessToken and budget in localStorage
+        // Store both token and user data consistently
         localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("userData", JSON.stringify({
+          username: formData.username,
+          budget: budget || 0
+        }));
 
-        if (budget !== undefined) {
-          localStorage.setItem("budget", JSON.stringify(budget));
-        }
+        // Set default authorization header for axios
+        axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
         setMessage("✅ Login successful!");
-        navigate("/dashboard"); // Redirect to dashboard
+        navigate("/dashboard");
       } else {
         setMessage("🚨 Authentication failed. Please try again.");
       }
@@ -51,7 +52,6 @@ const Login = () => {
 
   return (
     <div className="login-container">
-      {/* ✅ Login Form */}
       <div className="login-form-card">
         <h2>Login</h2>
         <form onSubmit={handleLogin}>
@@ -79,7 +79,6 @@ const Login = () => {
         {message && <p className="login-message">{message}</p>}
       </div>
 
-      {/* ✅ Register Link */}
       <div className="register-card">
         <p className="register-link">
           Don't have an account? <Link to="/register">Register here</Link>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "../styles/Budget.css";
+import BackArrow from '../components/BackArrow';
 
 const Budget = () => {
   const [budget, setBudget] = useState("");
@@ -71,6 +72,8 @@ const Budget = () => {
   return (
     <div className="budget-container">
       <div className="budget-card">
+      <BackArrow />
+
         <h2>Set Your Budget</h2>
 
         {/* ✅ Budget Input Form */}

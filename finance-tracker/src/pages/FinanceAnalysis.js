@@ -1,43 +1,69 @@
-// src/components/FinanceAnalysis.js
-
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import CircularProgress from "@mui/material/CircularProgress";
 import "./FinanceAnalysis.css";
+import BackArrow from '../components/BackArrow';
 
 const FinanceAnalysis = () => {
   const [analysis, setAnalysis] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchFinanceAnalysis();
-  }, []);
-
-  const fetchFinanceAnalysis = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post(
-        "http://localhost:8000/api/",
-        { action: "finance_analysis" },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+    const fetchFinanceAnalysis = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        
+        if (!token) {
+          throw new Error("No authentication token found");
         }
-      );
-      setAnalysis(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching analysis:", error);
-      setLoading(false);
-    }
-  };
+
+        const response = await axios.post(
+          "http://localhost:8000/api/",
+          { action: "finance_analysis" },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        
+        setAnalysis(response.data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching analysis:", error);
+        
+        if (error.response?.status === 401 || error.message.includes("authentication")) {
+          localStorage.removeItem("accessToken");
+          navigate("/login");
+        }
+        
+        setError(error.response?.data?.error || "Failed to load analysis");
+        setLoading(false);
+      }
+    };
+
+    fetchFinanceAnalysis();
+  }, [navigate]);
 
   return (
     <div className="finance-analysis-container">
+      {/* Back Arrow at top-left */}
+      <BackArrow />
+      
       <h2>Finance Analysis</h2>
       {loading ? (
-        <p>Loading...</p>
+        <div className="loading-spinner">
+          <CircularProgress />
+          <p>Loading your financial data...</p>
+        </div>
+      ) : error ? (
+        <div className="error-message">
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()}>Try Again</button>
+        </div>
       ) : (
         <>
           {/* Glowing Progress Card */}
@@ -49,6 +75,9 @@ const FinanceAnalysis = () => {
               thickness={5}
               sx={{
                 color: "#6a0dad",
+                "& .MuiCircularProgress-circle": {
+                  filter: "drop-shadow(0 0 5px rgba(106, 13, 173, 0.7))",
+                },
               }}
             />
             <div className="progress-text">
@@ -59,19 +88,23 @@ const FinanceAnalysis = () => {
           {/* Horizontal Info Cards */}
           <div className="info-cards-container">
             <div className="info-card">
-              <p>Total Budget: KES {analysis.total_budget}</p>
+              <h3>Total Budget</h3>
+              <p>KES {analysis.total_budget?.toLocaleString() || 0}</p>
             </div>
 
             <div className="info-card">
-              <p>Remaining: KES {analysis.remaining_budget}</p>
+              <h3>Remaining</h3>
+              <p>KES {analysis.remaining_budget?.toLocaleString() || 0}</p>
             </div>
 
             <div className="info-card">
-              <p>Paid Bills Total: KES {analysis.paid_bills_total}</p>
+              <h3>Paid Bills</h3>
+              <p>KES {analysis.paid_bills_total?.toLocaleString() || 0}</p>
             </div>
 
             <div className="info-card">
-              <p>Unpaid Bills Total: KES {analysis.unpaid_bills_total}</p>
+              <h3>Unpaid Bills</h3>
+              <p>KES {analysis.unpaid_bills_total?.toLocaleString() || 0}</p>
             </div>
           </div>
         </>
