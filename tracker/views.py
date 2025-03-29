@@ -135,8 +135,6 @@ def list_bills(user):
 
     return JsonResponse({"bills": bill_list, "notifications": notification_list}, status=200)
 
-
-
 # ✅ Mark Bill as Paid (Update & Record Transaction)
 def mark_bill_paid(user, data):
     bill_id = data.get('bill_id')
@@ -175,6 +173,36 @@ def mark_bill_paid(user, data):
     Notification.objects.filter(user=user, bill=bill).delete()
 
     return JsonResponse({"message": "Bill marked as paid and recorded."}, status=200)
+
+# ✅ Budget Handler (NEW - Added without changing other routes)
+def handle_budget(user, data):
+    amount = data.get('total_budget')
+    
+    if not amount:
+        return JsonResponse({"error": "Budget amount is required."}, status=400)
+    
+    try:
+        amount = Decimal(amount)
+        if amount <= 0:
+            return JsonResponse({"error": "Budget must be positive."}, status=400)
+    except:
+        return JsonResponse({"error": "Invalid budget amount."}, status=400)
+    
+    budget, created = Budget.objects.get_or_create(
+        user=user,
+        defaults={'total_budget': amount, 'remaining_budget': amount}
+    )
+    
+    if not created:
+        budget.total_budget = amount
+        budget.remaining_budget = amount
+        budget.save()
+
+    return JsonResponse({
+        "message": "Budget set successfully",
+        "total_budget": budget.total_budget,
+        "remaining_budget": budget.remaining_budget
+    }, status=200)
 
 # ✅ Finance Analysis (with Progress Calculation)
 def finance_analysis(user):
@@ -224,6 +252,10 @@ def finance_tracker(request):
 
         if action == "finance_analysis":
             return finance_analysis(user)
+            
+        # NEW: Added budget handler while keeping all other routes unchanged
+        if action == "add_budget":
+            return handle_budget(user, data)
 
         return JsonResponse({"error": "Invalid action."}, status=400)
 
