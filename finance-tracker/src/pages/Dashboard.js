@@ -1,8 +1,15 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 
 const Dashboard = () => {
+  const navigate = useNavigate(); // Hook for navigation
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken"); // Clear authentication token
+    navigate("/login"); // Redirect to login page
+  };
+
   return (
     <div className="dashboard-container">
       {/* Sidebar Navigation */}
@@ -15,6 +22,9 @@ const Dashboard = () => {
           <Link to="/finance-analysis" className="nav-item">📈 Finance Analysis</Link>
           <Link to="/notifications" className="nav-item">🔔 Notifications</Link>
         </nav>
+
+        {/* Logout Button */}
+        <button className="logout-button" onClick={handleLogout}>🚪 Logout</button>
       </div>
 
       {/* Main Dashboard Content */}

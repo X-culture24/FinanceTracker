@@ -85,22 +85,43 @@ def add_bill(user, data):
     if is_paid:
         budget = Budget.objects.filter(user=user).first()
         if budget:
+            # Record the payment transaction (debit)
+            payment_transaction = Transaction.objects.create(
+                user=user,
+                amount=amount,
+                transaction_type="debit",
+                category="bill_payment",
+                description=f"Payment for {category} bill",
+                related_bill=bill,
+                related_budget=budget
+            )
+
+            # Record the budget adjustment (credit)
+            adjustment_transaction = Transaction.objects.create(
+                user=user,
+                amount=amount,
+                transaction_type="credit",
+                category="budget_adjustment",
+                description=f"Budget reduction for {category} payment",
+                related_bill=bill,
+                related_budget=budget
+            )
+
             budget.remaining_budget -= amount
             budget.save()
 
-        Transaction.objects.create(
-            user=user,
-            bill=bill,
-            amount=amount,
-            category=category,
-            transaction_type="debit",
-            transaction_date=timezone.now()
-        )
+            Notification.objects.create(
+                user=user,
+                message=f"Payment of KES {amount} for {category} recorded",
+                notification_type="transaction_alert",
+                transaction=payment_transaction
+            )
     else:
         Notification.objects.create(
             user=user,
             message=f"Reminder: Pay {category} bill of KES {amount} by {due_date}.",
-            bill=bill
+            bill=bill,
+            notification_type="bill_reminder"
         )
 
     return JsonResponse({"message": "Bill processed successfully."}, status=201)
@@ -153,28 +174,49 @@ def mark_bill_paid(user, data):
     bill.is_paid = True
     bill.save()
 
-    # Update Budget
     budget = Budget.objects.filter(user=user).first()
     if budget:
+        # Record the payment transaction (debit)
+        payment_transaction = Transaction.objects.create(
+            user=user,
+            amount=bill.amount,
+            transaction_type="debit",
+            category="bill_payment",
+            description=f"Payment for {bill.category} bill",
+            related_bill=None,  # Since bill is being deleted
+            related_budget=budget
+        )
+
+        # Record the budget adjustment (credit)
+        adjustment_transaction = Transaction.objects.create(
+            user=user,
+            amount=bill.amount,
+            transaction_type="credit",
+            category="budget_adjustment",
+            description=f"Budget reduction for {bill.category} payment",
+            related_bill=None,  # Since bill is being deleted
+            related_budget=budget
+        )
+
         budget.remaining_budget -= bill.amount
         budget.save()
 
-    # Create Transaction Entry
-    Transaction.objects.create(
-        user=user,
-        bill=bill,
-        amount=bill.amount,
-        category=bill.category,
-        transaction_type="debit",
-        transaction_date=timezone.now()
-    )
+        Notification.objects.create(
+            user=user,
+            message=f"Payment of KES {bill.amount} for {bill.category} recorded",
+            notification_type="transaction_alert",
+            transaction=payment_transaction
+        )
 
     # Remove Related Notification
     Notification.objects.filter(user=user, bill=bill).delete()
 
-    return JsonResponse({"message": "Bill marked as paid and recorded."}, status=200)
+    # 🚀 **Delete the bill after processing**
+    bill.delete()
 
-# ✅ Budget Handler (NEW - Added without changing other routes)
+    return JsonResponse({"message": "Bill marked as paid, recorded, and deleted."}, status=200)
+
+# ✅ Budget Handler (Updated with transaction recording)
 def handle_budget(user, data):
     amount = data.get('total_budget')
     
@@ -188,40 +230,127 @@ def handle_budget(user, data):
     except:
         return JsonResponse({"error": "Invalid budget amount."}, status=400)
     
-    budget, created = Budget.objects.get_or_create(
-        user=user,
-        defaults={'total_budget': amount, 'remaining_budget': amount}
-    )
+    budget, created = Budget.objects.get_or_create(user=user)
+    previous_budget = budget.total_budget
     
+    # Update budget
+    budget.total_budget = amount
+    budget.remaining_budget = amount
+    budget.save()
+
+    # Record transaction
+    if created:
+        transaction_type = 'credit'
+        description = f"Initial budget allocation of KES {amount}"
+    else:
+        difference = amount - previous_budget
+        transaction_type = 'credit' if difference > 0 else 'debit'
+        description = f"Budget {'increased' if difference > 0 else 'decreased'} by KES {abs(difference)}"
+
+    transaction = Transaction.objects.create(
+        user=user,
+        amount=abs(amount if created else difference),
+        transaction_type=transaction_type,
+        category='budget_adjustment',
+        description=description,
+        related_budget=budget,
+        timestamp=timezone.now(),
+        transaction_date=timezone.now()
+    )
+
     if not created:
-        budget.total_budget = amount
-        budget.remaining_budget = amount
-        budget.save()
+        Notification.objects.create(
+            user=user,
+            message=description,
+            notification_type='transaction_alert',
+            transaction=transaction
+        )
 
     return JsonResponse({
         "message": "Budget set successfully",
-        "total_budget": budget.total_budget,
-        "remaining_budget": budget.remaining_budget
+        "total_budget": float(budget.total_budget),
+        "remaining_budget": float(budget.remaining_budget),
+        "transaction_id": transaction.id
     }, status=200)
 
-# ✅ Finance Analysis (with Progress Calculation)
+# ✅ Finance Analysis (Updated with detailed transaction info)
 def finance_analysis(user):
     budget = Budget.objects.filter(user=user).first()
-    total_budget = budget.total_budget if budget else Decimal(0)
-    remaining_budget = budget.remaining_budget if budget else Decimal(0)
+    if not budget:
+        return JsonResponse({"error": "No budget set for user."}, status=400)
+        
+    # Transaction calculations
+    credits = Transaction.objects.filter(
+        user=user, 
+        transaction_type="credit"
+    ).aggregate(total=Sum('amount'))['total'] or Decimal(0)
+    
+    debits = Transaction.objects.filter(
+        user=user, 
+        transaction_type="debit"
+    ).aggregate(total=Sum('amount'))['total'] or Decimal(0)
 
-    paid_bills_total = Transaction.objects.filter(user=user, transaction_type="debit").aggregate(total=Sum('amount'))['total'] or Decimal(0)
-    unpaid_bills_total = Bill.objects.filter(user=user, is_paid=False).aggregate(total=Sum('amount'))['total'] or Decimal(0)
+    total_budget = budget.total_budget
+    remaining_budget = budget.remaining_budget
+    spent_percentage = ((total_budget - remaining_budget) / total_budget) * 100 if total_budget > 0 else 0
 
-    progress_percentage = (remaining_budget / total_budget) * 100 if total_budget > 0 else 0
+    recent_transactions = Transaction.objects.filter(user=user).order_by('-transaction_date')[:5]
 
     return JsonResponse({
-        "total_budget": total_budget,
-        "remaining_budget": remaining_budget,
-        "paid_bills_total": paid_bills_total,
-        "unpaid_bills_total": unpaid_bills_total,
-        "progress_percentage": round(progress_percentage, 2)
+        "total_budget": float(total_budget),
+        "remaining_budget": float(remaining_budget),
+        "spent_percentage": round(float(spent_percentage), 2),
+        "total_credits": float(credits),
+        "total_debits": float(debits),
+        "balance": float(credits - debits),
+        "recent_transactions": [
+            {
+                "id": t.id,
+                "amount": float(t.amount),
+                "type": t.transaction_type,
+                "category": t.category,
+                "description": t.description,
+                "date": t.transaction_date.strftime("%Y-%m-%d %H:%M")
+            } for t in recent_transactions
+        ]
     }, status=200)
+
+# ✅ Get Notifications Endpoint
+def get_notifications(user):
+    notifications = Notification.objects.filter(user=user).order_by("-created_at")[:10]
+    notifications_data = [
+        {
+            "id": note.id,
+            "message": note.message,
+            "created_at": note.created_at.strftime("%Y-%m-%d %H:%M"),
+            "bill_id": note.bill.id if note.bill else None,
+            "transaction_id": note.transaction.id if note.transaction else None,
+        } for note in notifications
+    ]
+    return JsonResponse({"notifications": notifications_data})
+
+
+
+def get_transactions(user):
+    transactions = Transaction.objects.filter(user=user).order_by("-timestamp")[:10]
+    
+    transactions_data = [
+        {
+            "id": txn.id,
+            "category": txn.category,
+            "amount": float(txn.amount),
+            "transaction_type": txn.transaction_type,
+            "date": txn.timestamp.strftime("%Y-%m-%d %H:%M"),
+            "description": txn.description,
+            "related_bill": txn.related_bill.id if txn.related_bill else None,
+            "related_budget": txn.related_budget.id if txn.related_budget else None,
+        } 
+        for txn in transactions
+    ]
+    
+    # ✅ Update key name from "transactions" to "recent_transactions"
+    return JsonResponse({"recent_transactions": transactions_data})
+
 
 # ✅ Main Finance Tracker Endpoint
 @csrf_exempt
@@ -253,9 +382,14 @@ def finance_tracker(request):
         if action == "finance_analysis":
             return finance_analysis(user)
             
-        # NEW: Added budget handler while keeping all other routes unchanged
         if action == "add_budget":
             return handle_budget(user, data)
+
+        if action == "get_notifications":
+            return get_notifications(user)
+
+        if action == "get_transactions":
+            return get_transactions(user)
 
         return JsonResponse({"error": "Invalid action."}, status=400)
 

@@ -1,18 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext"; // ✅ Import AuthContext
 import "../styles/Login.css";
 
 const Login = () => {
+  const { setUser } = useContext(AuthContext); // ✅ Get setUser from AuthContext
   const [formData, setFormData] = useState({
     username: "",
     password: "",
   });
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setMessage("");
+
     try {
       const response = await axios.post("http://localhost:8000/api/", {
         action: "login",
@@ -20,33 +26,58 @@ const Login = () => {
         password: formData.password,
       });
 
-      console.log("✅ Login Response:", response.data);
+      console.log("Login response:", response);
 
-      const accessToken = response.data?.access || response.data?.token;
-      const budget = response.data?.budget;
-
-      if (accessToken) {
-        // Store both token and user data consistently
-        localStorage.setItem("accessToken", accessToken);
-        localStorage.setItem("userData", JSON.stringify({
-          username: formData.username,
-          budget: budget || 0
-        }));
-
-        // Set default authorization header for axios
-        axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-
-        setMessage("✅ Login successful!");
-        navigate("/dashboard");
-      } else {
-        setMessage("🚨 Authentication failed. Please try again.");
+      if (!response.data) {
+        throw new Error("No response data received");
       }
+
+      const accessToken = response.data.access;
+      const refreshToken = response.data.refresh;
+
+      if (!accessToken) {
+        throw new Error("No access token received");
+      }
+
+      // Store tokens in localStorage
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
+      // Set default authorization header for axios
+      axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+
+      // Store user data and update context
+      if (response.data.user) {
+        localStorage.setItem("userData", JSON.stringify(response.data.user));
+        setUser(response.data.user); // ✅ Update user in context
+      }
+
+      // Redirect to dashboard after successful login
+      setMessage("✅ Login successful!");
+      setTimeout(() => {
+        navigate("/dashboard", { replace: true });
+      }, 500); // Small delay to ensure message is visible
     } catch (error) {
-      console.error("🚨 Login Error:", error.response || error);
-      setMessage(
-        error.response?.data?.error ||
-          "🚨 Login failed. Please check your credentials."
-      );
+      console.error("Login error:", error);
+
+      let errorMessage = "Login failed. Please try again.";
+      if (error.response) {
+        // Server responded with error status
+        errorMessage = error.response.data?.error || errorMessage;
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = "Network error. Please check your connection.";
+      }
+
+      setMessage(`🚨 ${errorMessage}`);
+
+      // Clear any existing tokens on error
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("userData");
+      delete axios.defaults.headers.common["Authorization"];
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -63,6 +94,7 @@ const Login = () => {
               setFormData({ ...formData, username: e.target.value })
             }
             required
+            disabled={isLoading}
           />
           <input
             type="password"
@@ -72,11 +104,22 @@ const Login = () => {
               setFormData({ ...formData, password: e.target.value })
             }
             required
+            disabled={isLoading}
           />
-          <button type="submit">Login</button>
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? "Logging in..." : "Login"}
+          </button>
         </form>
 
-        {message && <p className="login-message">{message}</p>}
+        {message && (
+          <p
+            className={`login-message ${
+              message.includes("✅") ? "success" : "error"
+            }`}
+          >
+            {message}
+          </p>
+        )}
       </div>
 
       <div className="register-card">

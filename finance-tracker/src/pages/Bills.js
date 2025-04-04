@@ -2,11 +2,12 @@ import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
+import BackArrow from "../components/BackArrow";
 
 const Bills = () => {
   const [bills, setBills] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", type: "" });
   const [newBill, setNewBill] = useState({
     category: "",
     amount: "",
@@ -14,16 +15,14 @@ const Bills = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const navigate = useNavigate();
 
-  // Fetch bills and notifications
+  const categories = ["Rent", "Electricity", "Water", "Internet", "Groceries", "Transport", "Insurance", "Loan Payment", "Entertainment", "Miscellaneous"];
+
   const fetchBills = useCallback(async () => {
     try {
-      const token = localStorage.getItem("accessToken"); // Changed from "token" to "accessToken"
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No authentication token found");
 
       const response = await axios.post(
         "http://localhost:8000/api/",
@@ -45,24 +44,35 @@ const Bills = () => {
     }
   }, [navigate]);
 
-  // Mark bill as paid
-  const markAsPaid = async (billId) => {
+  // Add new bill
+  const addBill = async (e) => {
+    e.preventDefault();
     try {
-      const token = localStorage.getItem("accessToken"); // Changed here
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No authentication token found");
+
+      const billData = {
+        ...newBill,
+        amount: parseFloat(newBill.amount),
+      };
 
       const response = await axios.post(
         "http://localhost:8000/api/",
-        { action: "mark_bill_paid", bill_id: billId },
+        { action: "add_bill", ...billData },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setMessage(response.data.message);
-      fetchBills(); // Refresh bill list
+      setMessage({ text: response.data.message, type: "success" });
+      setNewBill({ category: "", amount: "", due_date: "" });
+      fetchBills();
+
+      setTimeout(() => setMessage({ text: "", type: "" }), 5000);
     } catch (error) {
-      console.error("Error marking bill as paid:", error);
+      console.error("Error adding bill:", error);
+      setMessage({
+        text: error.response?.data?.error || "Failed to add bill",
+        type: "error",
+      });
       if (error.response?.status === 401) {
         localStorage.removeItem("accessToken");
         navigate("/login");
@@ -70,26 +80,28 @@ const Bills = () => {
     }
   };
 
-  // Add new bill
-  const addBill = async (e) => {
-    e.preventDefault();
+  // Mark bill as paid
+  const markBillAsPaid = async (billId) => {
     try {
-      const token = localStorage.getItem("accessToken"); // Changed here
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No authentication token found");
 
       const response = await axios.post(
         "http://localhost:8000/api/",
-        { action: "add_bill", ...newBill },
+        { action: "mark_bill_paid", bill_id: billId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setMessage(response.data.message);
-      setNewBill({ category: "", amount: "", due_date: "" });
-      fetchBills();
+      setMessage({ text: response.data.message, type: "success" });
+      fetchBills(); // Refresh the bills list
+
+      setTimeout(() => setMessage({ text: "", type: "" }), 5000);
     } catch (error) {
-      console.error("Error adding bill:", error);
+      console.error("Error marking bill as paid:", error);
+      setMessage({
+        text: error.response?.data?.error || "Failed to mark bill as paid",
+        type: "error",
+      });
       if (error.response?.status === 401) {
         localStorage.removeItem("accessToken");
         navigate("/login");
@@ -115,74 +127,113 @@ const Bills = () => {
   }
 
   return (
-    <div className="container">
-      <h2>Your Bills</h2>
+    <div className="bills-container">
+      <div className="bills-card">
+        <BackArrow onClick={() => navigate("/dashboard")} />
+        <h2>Bill Management</h2>
 
-      {message && <p className="success-message">{message}</p>}
+        {/* Message Notification */}
+        {message.text && (
+          <div className={`message ${message.type}`}>
+            {message.text}
+          </div>
+        )}
 
-      <ul>
-        {bills.map((bill) => (
-          <li key={bill.bill_id} className="card">
-            <p>
-              <strong>{bill.category}</strong>: KES {bill.amount} (Due: {bill.due_date}) -{" "}
-              {bill.status}
-            </p>
-            {bill.can_mark_as_paid && (
-              <button onClick={() => markAsPaid(bill.bill_id)}>Mark as Paid</button>
-            )}
-          </li>
-        ))}
-      </ul>
+        {/* Add New Bill Form */}
+        <form onSubmit={addBill} className="bill-form">
+          <h3>Add New Bill</h3>
 
-      <h3>Unpaid Bill Notifications</h3>
-      {notifications.length === 0 ? (
-        <p>No pending notifications.</p>
-      ) : (
-        notifications.map((note) => (
-          <p key={note.bill_id} className="notification">{note.message}</p>
-        ))
-      )}
+          <div className="form-group">
+            <label>Category</label>
+            <select
+              value={newBill.category}
+              onChange={(e) => setNewBill({ ...newBill, category: e.target.value })}
+              required
+            >
+              <option value="" disabled>Select a category</option>
+              {categories.map((category, index) => (
+                <option key={index} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      <h3>Add a New Bill</h3>
-      <form className="card add-bill-form" onSubmit={addBill}>
-        <label>
-          Category:
-          <input
-            type="text"
-            value={newBill.category}
-            onChange={(e) => setNewBill({ ...newBill, category: e.target.value })}
-            placeholder="e.g., Rent, Electricity"
-            required
-          />
-        </label>
+          <div className="form-group">
+            <label>Amount (KES)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={newBill.amount}
+              onChange={(e) => setNewBill({ ...newBill, amount: e.target.value })}
+              placeholder="e.g., 5000"
+              required
+            />
+          </div>
 
-        <label>
-          Amount (KES):
-          <input
-            type="number"
-            value={newBill.amount}
-            onChange={(e) => setNewBill({ ...newBill, amount: e.target.value })}
-            placeholder="e.g., 5000"
-            required
-          />
-        </label>
+          <div className="form-group">
+            <label>Due Date</label>
+            <input
+              type="date"
+              value={newBill.due_date}
+              onChange={(e) => setNewBill({ ...newBill, due_date: e.target.value })}
+              required
+            />
+          </div>
 
-        <label>
-          Due Date:
-          <input
-            type="date"
-            value={newBill.due_date}
-            onChange={(e) => setNewBill({ ...newBill, due_date: e.target.value })}
-            required
-          />
-        </label>
+          <button type="submit" className="submit-btn">
+            Add Bill
+          </button>
+        </form>
 
-        <button type="submit">Add Bill</button>
-      </form>
+        {/* Bills List */}
+        <div className="bills-list">
+          <h3>Your Bills</h3>
+          {bills.length === 0 ? (
+            <p className="no-bills">No bills found</p>
+          ) : (
+            <ul>
+              {bills.map((bill) => (
+                <li key={bill.bill_id} className={`bill-item ${bill.is_paid ? 'paid' : 'unpaid'}`}>
+                  <div className="bill-header">
+                    <span className="bill-category">{bill.category}</span>
+                    <span className="bill-amount">KES {parseFloat(bill.amount).toFixed(2)}</span>
+                  </div>
+                  <div className="bill-details">
+                    <span className="due-date">Due: {bill.due_date}</span>
+                    <span className={`status ${bill.is_paid ? "paid" : "unpaid"}`}>
+                      {bill.is_paid ? "Paid" : "Unpaid"}
+                    </span>
+                  </div>
+                  {!bill.is_paid && (
+                    <button 
+                      onClick={() => markBillAsPaid(bill.bill_id)}
+                      className="mark-paid-btn"
+                    >
+                      Mark as Paid
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-      <button className="back-button" onClick={() => navigate("/dashboard")}>
-        ← Back to Dashboard
-      </button>
+        {/* Notifications Section */}
+        {notifications.length > 0 && (
+          <div className="notifications-section">
+            <h3>Notifications</h3>
+            <ul>
+              {notifications.map((note, index) => (
+                <li key={index} className="notification-item">
+                  {note.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

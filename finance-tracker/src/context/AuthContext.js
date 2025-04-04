@@ -10,19 +10,19 @@ export const AuthProvider = ({ children }) => {
   // Check if user is logged in (from localStorage) on mount
   useEffect(() => {
     try {
-      const storedUser = localStorage.getItem("user");
+      const storedUser = localStorage.getItem("userData"); // ✅ Changed key to match Login.js
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
       console.error("Error parsing user data from localStorage:", error);
-      localStorage.removeItem("user");
+      localStorage.removeItem("userData");
     }
   }, []);
 
   // Login function
   const login = (userData) => {
-    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("userData", JSON.stringify(userData)); // ✅ Ensure consistency
     localStorage.setItem("accessToken", userData.accessToken);
     localStorage.setItem("refreshToken", userData.refreshToken);
     setUser(userData);
@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout }}> 
       {children}
     </AuthContext.Provider>
   );

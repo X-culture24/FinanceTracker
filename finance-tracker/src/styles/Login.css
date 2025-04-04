@@ -2,20 +2,21 @@
 .login-container {
   display: flex;
   flex-direction: column;
-  align-items: center; /* Center horizontally */
-  justify-content: center; /* Center vertically */
-  min-height: 100vh; /* Full viewport height */
-  background: #87CEFA; /* Light Blue Background */
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #87CEFA;
+  padding: 20px;
 }
 
 /* Form Container with Shadow */
 .login-form-card {
-  width: 400px; /* Fixed width for a centered card */
+  width: 400px;
   padding: 40px;
   background: #ffffff;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); /* Soft shadow */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   border-radius: 16px;
-  margin-bottom: 20px; /* Space between the form and the link card */
+  margin-bottom: 20px;
 }
 
 /* Input Styling */
@@ -27,37 +28,90 @@
   border-radius: 8px;
   font-size: 1rem;
   background: white;
-  color: black; /* Ensure text is visible */
+  color: black;
+  transition: border-color 0.3s ease;
+}
+
+.login-container input:focus {
+  border-color: #6a0dad;
+  outline: none;
 }
 
 .login-container input::placeholder {
-  color: gray;
+  color: #aaa;
+}
+
+.login-container input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
 }
 
 /* Button Styling */
 .login-container button {
   width: 100%;
   padding: 12px;
-  background: #6a0dad; /* Purple theme */
+  background: #6a0dad;
   color: white;
   font-size: 1rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  position: relative;
 }
 
 .login-container button:hover {
-  background: #4b0878; /* Darker on hover */
+  background: #4b0878;
+}
+
+.login-container button:disabled {
+  background: #9e7bbe;
+  cursor: not-allowed;
+}
+
+/* Loading spinner for button */
+.login-container button:disabled::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 /* Message Styling */
 .login-message {
-  color: red;
-  margin-top: 10px;
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
-/* Register Link Card (for better alignment) */
+.login-message.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.login-message.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Register Link Card */
 .register-card {
   width: 400px;
   padding: 20px;
@@ -70,21 +124,43 @@
 /* Register Link Styling */
 .register-link {
   font-size: 1rem;
+  color: #555;
 }
 
 .register-link a {
-  color: #6a0dad; /* Matching theme */
+  color: #6a0dad;
   text-decoration: none;
   font-weight: bold;
+  transition: color 0.2s ease;
 }
 
 .register-link a:hover {
-  text-decoration: underline; /* Underline on hover */
+  color: #4b0878;
+  text-decoration: underline;
 }
 
 /* Responsive Design */
 @media (max-width: 600px) {
   .login-form-card, .register-card {
-    width: 90%; /* Adjust for smaller screens */
+    width: 90%;
+    padding: 30px 20px;
   }
+  
+  .login-container input {
+    padding: 10px;
+  }
+  
+  .login-container button {
+    padding: 10px;
+  }
+}
+
+/* Animation for form entry */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.login-form-card, .register-card {
+  animation: fadeIn 0.5s ease-out forwards;
 }
