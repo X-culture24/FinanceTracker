@@ -56,7 +56,8 @@ def login_user(data):
         refresh = RefreshToken.for_user(user)
         return JsonResponse({
             "access": str(refresh.access_token),
-            "refresh": str(refresh)
+            "refresh": str(refresh),
+            "user": str(user)
         })
     return JsonResponse({"error": "Invalid credentials."}, status=401)
 
