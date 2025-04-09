@@ -47,11 +47,12 @@ const Login = () => {
       axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
 
       // Store user data and update context
+      console.log(response.data);
       if (response.data.user) {
         localStorage.setItem("userData", JSON.stringify(response.data.user));
         setUser(response.data.user); // ✅ Update user in context
       }
-
+      
       // Redirect to dashboard after successful login
       setMessage("✅ Login successful!");
       setTimeout(() => {
